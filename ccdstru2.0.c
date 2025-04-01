@@ -13,7 +13,7 @@ typedef struct {
     int y;
 } Position;
 
-// Define sets as arrays of positions with size tracking
+// Define sets as arrays of positions that tracks the size
 typedef struct {
     Position positions[MAX_POSITIONS];
     int size;
@@ -34,22 +34,29 @@ void initializeGame(GameState* game);
 bool positionInSet(Position pos, PositionSet set);
 void addPositionToSet(Position pos, PositionSet* set);
 void removePositionFromSet(Position pos, PositionSet* set);
-bool hasWinningPattern(PositionSet playerSet);
+bool checkWinningPattern(PositionSet playerSet);
 void checkGameOver(GameState* game);
-bool processMove(GameState* game, Position pos);
+bool nextPlayerMove(GameState* game, Position pos);
 void displayGame(GameState game);
 void clearScreen();
 
-// Winning patterns (as defined in set C)
-const Position winningPatterns[4][4] = {
+// Winning patterns (W = C - T)
+const Position winningPatterns[3][4] = {
     {{1,1}, {1,2}, {1,3}, {1,4}},  // Top row
-    {{1,1}, {2,2}, {3,3}, {4,4}},  // Main diagonal
     {{1,4}, {2,3}, {3,2}, {4,1}},  // Anti-diagonal
     {{4,1}, {4,2}, {4,3}, {4,4}}   // Right column
 };
 
-// Initialize a new game
-void initializeGame(GameState* game) {
+/**
+ * Initializes the game with values.
+ * @param game - Pointer to the game state structure to be initialized.
+ * @return void
+ * @details Sets up a new game by clearing player position sets (Uno and Tres),
+ *          populating the free positions set with all grid positions, and
+ *          setting initial game state variables.
+ */
+void initializeGame(GameState* game)
+{
     // Clear sets
     game->Uno.size = 0;
     game->Tres.size = 0;
@@ -70,8 +77,15 @@ void initializeGame(GameState* game) {
     game->over = false;
 }
 
-// Check if a position is in a set
-bool positionInSet(Position pos, PositionSet set) {
+/**
+ * Checks if a position exists within a given set.
+ * @param pos - The position to check for.
+ * @param set - The set to search in.
+ * @return bool - true if the position is found in the set, false otherwise.
+ * @details Iterates through all positions in the set to find a match for the specified position.
+ */
+bool positionInSet(Position pos, PositionSet set)
+{
     for (int i = 0; i < set.size; i++) {
         if (set.positions[i].x == pos.x && set.positions[i].y == pos.y) {
             return true;
@@ -80,16 +94,32 @@ bool positionInSet(Position pos, PositionSet set) {
     return false;
 }
 
-// Add a position to a set
-void addPositionToSet(Position pos, PositionSet* set) {
+/**
+ * Adds a position to a set if it doesn't already exist in the set.
+ * @param pos - The position to add.
+ * @param set - Pointer to the set where the position should be added.
+ * @return void
+ * @details Checks if the position is already in the set, and if not, adds it to the
+ *          end of the positions array and increments the size.
+ */
+void addPositionToSet(Position pos, PositionSet* set)
+{
     if (!positionInSet(pos, *set)) {
         set->positions[set->size] = pos;
         set->size++;
     }
 }
 
-// Remove a position from a set
-void removePositionFromSet(Position pos, PositionSet* set) {
+/**
+ * Removes a position from a set.
+ * @param pos - The position to remove.
+ * @param set - Pointer to the set from which the position should be removed.
+ * @return void
+ * @details Finds the position in the set, replaces it with the last position in 
+ *          the array, and decrements the size of the set.
+ */
+void removePositionFromSet(Position pos, PositionSet* set)
+{
     for (int i = 0; i < set->size; i++) {
         if (set->positions[i].x == pos.x && set->positions[i].y == pos.y) {
             // Move the last position to this spot and decrease size
@@ -100,10 +130,17 @@ void removePositionFromSet(Position pos, PositionSet* set) {
     }
 }
 
-// Check if a player has formed a winning pattern
-bool hasWinningPattern(PositionSet playerSet) {
+/**
+ * Checks if a player's positions form any of the winning patterns.
+ * @param playerSet - The set of positions owned by the player.
+ * @return bool - true if the player has a winning pattern, false otherwise.
+ * @details Iterates through predefined winning patterns and checks if all positions
+ *          in any pattern are contained in the player's set.
+ */
+bool checkWinningPattern(PositionSet playerSet)
+{
     // For each winning pattern
-    for (int p = 0; p < 4; p++) {
+    for (int p = 0; p < 3; p++) {
         bool patternComplete = true;
         
         // Check if all positions in the pattern are in the player's set
@@ -121,13 +158,20 @@ bool hasWinningPattern(PositionSet playerSet) {
     return false;
 }
 
-// Check if the game is over
-void checkGameOver(GameState* game) {
+/**
+ * Determines if the game has ended based on winning conditions.
+ * @param game - Pointer to the current game state.
+ * @return void
+ * @details Checks if either player has formed a winning pattern or if there are
+ *          no free positions left, and sets the game's "over" flag accordingly.
+ */
+void checkGameOver(GameState* game)
+{
     // Check winning conditions
-    if (hasWinningPattern(game->Uno)) {
+    if (checkWinningPattern(game->Uno)){
         game->over = true;
     }
-    else if (hasWinningPattern(game->Tres)) {
+    else if (checkWinningPattern(game->Tres)){
         game->over = true;
     }
     else if (game->F.size == 0) {
@@ -135,10 +179,20 @@ void checkGameOver(GameState* game) {
     }
 }
 
-// Process a player move
-bool processMove(GameState* game, Position pos) {
+/**
+ * Processes a player's move based on the current game state.
+ * @param game - Pointer to the current game state.
+ * @param pos - The position where the move is being made.
+ * @return bool - true if the move was processed successfully, false if the move was invalid.
+ * @details Handles three different move types based on whose turn it is:
+ *          1. Uno's placement turn (turn=true, go=true)
+ *          2. Dos' removal turn (turn=false)
+ *          3. Tres' placement turn (turn=true, go=false)
+ */
+bool nextPlayerMove(GameState* game, Position pos)
+{
     // First case: Uno's turn (turn=true, go=true)
-    if (game->turn && game->go && positionInSet(pos, game->F)) {
+    if (game->turn && game->go && positionInSet(pos, game->F)){
         // Add position to Uno's set
         addPositionToSet(pos, &game->Uno);
         // Remove from free positions
@@ -149,17 +203,17 @@ bool processMove(GameState* game, Position pos) {
         return true;
     }
     // Second case: Removal turn (turn=false)
-    else if (!game->turn) {
+    else if (!game->turn){
         // Check if position is in either Uno or Tres
         bool inUno = positionInSet(pos, game->Uno);
         bool inTres = positionInSet(pos, game->Tres);
         
-        if (inUno || inTres) {
+        if (inUno || inTres){
             // Remove position from respective set
-            if (inUno) {
+            if (inUno){
                 removePositionFromSet(pos, &game->Uno);
             }
-            if (inTres) {
+            if (inTres){
                 removePositionFromSet(pos, &game->Tres);
             }
             
@@ -172,7 +226,7 @@ bool processMove(GameState* game, Position pos) {
         }
     }
     // Third case: Tres's turn (turn=true, go=false)
-    else if (game->turn && !game->go && positionInSet(pos, game->F)) {
+    else if (game->turn && !game->go && positionInSet(pos, game->F)){
         // Add position to Tres's set
         addPositionToSet(pos, &game->Tres);
         // Remove from free positions
@@ -186,8 +240,14 @@ bool processMove(GameState* game, Position pos) {
     return false;
 }
 
-// Clear the screen (cross-platform)
-void clearScreen() {
+/**
+ * Clears the console screen.
+ * @return void
+ * @details Uses platform-specific commands to clear the terminal/console screen
+ *          (cls for Windows, clear for Unix-like systems).
+ */
+void clrscr()
+{
     #ifdef _WIN32
         system("cls");
     #else
@@ -195,12 +255,19 @@ void clearScreen() {
     #endif
 }
 
-// Display the current game state
-void displayGame(GameState game) {
-    clearScreen();
+/**
+ * Displays the current game state in the console.
+ * @param game - The current game state to display.
+ * @return void
+ * @details Renders the game grid showing player positions, displays game status and
+ *          whose turn it is, and lists available moves for the current player.
+ */
+void displayGame(GameState game)
+{
+    clrscr();
     
     printf("");
-    printf("     GAME GRID\n\n");
+    printf("      GAME GRID\n\n");
     
     // Display coordinate reference above the board
     printf("    ");
@@ -232,10 +299,10 @@ void displayGame(GameState game) {
     // Display game status
     printf("\nGame Status: ");
     if (game.over) {
-        if (hasWinningPattern(game.Uno)) {
+        if (checkWinningPattern(game.Uno)) {
             printf("Game Over - Uno Wins!\n");
         }
-        else if (hasWinningPattern(game.Tres)) {
+        else if (checkWinningPattern(game.Tres)) {
             printf("Game Over - Tres Wins!\n");
         }
         else if (game.F.size == 0) {
@@ -289,11 +356,17 @@ void displayGame(GameState game) {
     
 }
 
-int main() {
+int main()
+{
     GameState game;
     int x, y;
     Position movePos;
     
+    printf("\n\n\n\n\n\n\n\n\n\n\n");
+    printf("                                                      \033[1;94mTres\033[0m, \033[1;95mUno\033[0m, \033[1;91mDos\033[0m\n");
+    printf("                                                    By Hadjj and Justin\n\n");
+    printf("                                                  Press Enter to Continue");
+    getchar();
     // Initialize the game
     initializeGame(&game);
     
@@ -326,7 +399,7 @@ int main() {
         movePos.y = y;
         
         // Process the move
-        if (!processMove(&game, movePos)) {
+        if (!nextPlayerMove(&game, movePos)) {
             printf("\nInvalid move! Try again.\n");
             printf("Press Enter to continue...");
             getchar(); // Clear the newline
